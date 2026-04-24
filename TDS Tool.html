@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TDS Determination Logic Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Custom scrollbar for select */
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1em;
+        }
+        
+        /* Questionnaire Step Circle */
+        .step-circle {
+            @apply w-6 h-6 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-brand-900 text-white shadow-lg py-6">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-4">
+            <div class="p-3 bg-brand-600 rounded-lg">
+                <i class="fas fa-clipboard-question text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight">TDS Smart Questionnaire</h1>
+                <p class="text-brand-100 text-sm mt-1">Answer simple questions to automatically determine the correct TDS section and amount</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Input Panel / Questionnaire -->
+        <div class="lg:col-span-6 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden h-fit">
+            <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
+                <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-list-check text-brand-500"></i> Transaction Details
+                </h2>
+            </div>
+            <div class="p-6 space-y-8">
+                
+                <!-- Q1: Nature of Payment -->
+                <div class="flex gap-3">
+                    <div class="step-circle">1</div>
+                    <div class="flex-grow">
+                        <label for="paymentType" class="block text-sm font-semibold text-slate-800 mb-2">What are you paying for?</label>
+                        <select id="paymentType" class="w-full bg-white border border-slate-300 rounded-lg px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow">
+                            <option value="" disabled selected>Select the nature of payment...</option>
+                            <!-- Options populated via JS -->
+                        </select>
+                        <p class="text-xs text-slate-500 mt-2"><i class="fas fa-info-circle mr-1"></i> The system will automatically map this to the correct Income Tax Section.</p>
+                    </div>
+                </div>
+
+                <!-- Q2: Payee Type -->
+                <div class="flex gap-3">
+                    <div class="step-circle">2</div>
+                    <div class="flex-grow">
+                        <label class="block text-sm font-semibold text-slate-800 mb-2">Who is receiving this payment?</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <label class="flex items-start p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">
+                                <input type="radio" name="payeeType" value="ind_huf" class="mt-0.5 w-4 h-4 text-brand-600 border-slate-300 focus:ring-brand-500" checked>
+                                <div class="ml-2">
+                                    <span class="text-sm font-medium text-slate-800 block">Individual or HUF</span>
+                                    <span class="text-xs text-slate-500">A person or a Hindu Undivided Family</span>
+                                </div>
+                            </label>
+                            <label class="flex items-start p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">
+                                <input type="radio" name="payeeType" value="other" class="mt-0.5 w-4 h-4 text-brand-600 border-slate-300 focus:ring-brand-500">
+                                <div class="ml-2">
+                                    <span class="text-sm font-medium text-slate-800 block">Company, Firm, or Others</span>
+                                    <span class="text-xs text-slate-500">LLP, Pvt Ltd, Partnership, etc.</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Q3: PAN Status -->
+                <div class="flex gap-3">
+                    <div class="step-circle">3</div>
+                    <div class="flex-grow">
+                        <label class="block text-sm font-semibold text-slate-800 mb-2">Do you have their valid PAN?</label>
+                        <label class="flex items-start p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors bg-white">
+                            <div class="flex items-center h-5">
+                                <input type="checkbox" id="hasPan" class="w-5 h-5 text-brand-600 bg-white border-slate-300 rounded focus:ring-brand-500 focus:ring-2" checked>
+                            </div>
+                            <div class="ml-3 text-sm">
+                                <span class="font-medium text-slate-800 block">Yes, PAN is available</span>
+                                <span class="text-slate-500 text-xs">Uncheck this if PAN is not provided (Higher TDS rate applies automatically)</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Q4: Amount -->
+                <div class="flex gap-3">
+                    <div class="step-circle">4</div>
+                    <div class="flex-grow space-y-4">
+                        <div>
+                            <label id="lblCurrentAmount" for="amount" class="block text-sm font-semibold text-slate-800 mb-2">Current Invoice / Payment Amount</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <span class="text-slate-500 font-medium text-lg">₹</span>
+                                </div>
+                                <input type="number" id="amount" class="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-4 py-3 text-slate-800 text-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow" placeholder="e.g. 35000" min="0" step="100">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label id="lblPrevAmount" for="prevAmount" class="block text-sm font-semibold text-slate-800 mb-2">Previous Payments to this payee in this FY <span class="text-slate-500 font-normal">(Optional)</span></label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <span class="text-slate-500 font-medium text-lg">₹</span>
+                                </div>
+                                <input type="number" id="prevAmount" class="w-full bg-slate-50 border border-slate-300 rounded-lg pl-9 pr-4 py-3 text-slate-800 text-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow" placeholder="e.g. 0" min="0" step="100">
+                            </div>
+                            <p id="helperPrevAmount" class="text-xs text-slate-500 mt-2"><i class="fas fa-info-circle mr-1"></i> Required to correctly check annual limits for TDS applicability.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Output Panel -->
+        <div class="lg:col-span-6 flex flex-col gap-6">
+            
+            <!-- Result Card -->
+            <div id="resultCard" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative transition-all duration-300">
+                
+                <!-- Status Banner -->
+                <div id="statusBanner" class="px-6 py-4 flex items-center gap-3 bg-slate-100 border-b border-slate-200">
+                    <div id="statusIcon" class="w-8 h-8 rounded-full flex items-center justify-center text-white bg-slate-400">
+                        <i class="fas fa-info"></i>
+                    </div>
+                    <div>
+                        <h3 id="statusTitle" class="text-lg font-bold text-slate-800">Awaiting Details</h3>
+                        <p id="statusDesc" class="text-sm text-slate-600">Complete the questionnaire to see the result</p>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <div class="grid grid-cols-2 gap-y-6 gap-x-8">
+                        
+                        <!-- Breakdown Items -->
+                        <div>
+                            <p class="text-sm font-medium text-slate-500 mb-1">Mapped Section</p>
+                            <div class="flex items-center gap-2">
+                                <p id="outSection" class="text-base font-semibold text-slate-800">-</p>
+                                <span id="outSectionDesc" class="text-xs text-slate-500 truncate max-w-[120px]" title=""></span>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <p class="text-sm font-medium text-slate-500 mb-1">Threshold Limit</p>
+                            <p id="outThreshold" class="text-[13px] font-semibold text-slate-800">-</p>
+                        </div>
+
+                        <div>
+                            <p class="text-sm font-medium text-slate-500 mb-1">Standard Rate</p>
+                            <p id="outBaseRate" class="text-base font-semibold text-slate-800">-</p>
+                        </div>
+
+                        <div>
+                            <p class="text-sm font-medium text-slate-500 mb-1">Final Applied Rate</p>
+                            <div class="flex items-center gap-2">
+                                <p id="outEffectiveRate" class="text-xl font-bold text-brand-600">-</p>
+                                <span id="panWarning" class="hidden text-[10px] font-semibold bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200">No PAN Penalty</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <hr class="my-6 border-slate-200">
+
+                    <!-- Final Calculation -->
+                    <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-slate-600 font-medium">Current Invoice Amount</span>
+                            <span id="outCurrent" class="text-slate-800 font-semibold">₹ 0</span>
+                        </div>
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-slate-500 font-medium text-sm">Taxable Amount (Base for TDS)</span>
+                            <span id="outTaxable" class="text-slate-600 font-semibold text-sm">₹ 0</span>
+                        </div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-slate-800 font-semibold">TDS to be Deducted</span>
+                            <span id="outTDS" class="text-red-600 font-bold">- ₹ 0</span>
+                        </div>
+                        <div class="h-px bg-slate-200 my-3 w-full"></div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-lg text-slate-800 font-bold">Net Amount to Pay</span>
+                            <span id="outNet" class="text-2xl text-green-600 font-black">₹ 0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes Section -->
+            <div class="bg-blue-50 rounded-2xl border border-blue-100 p-5">
+                <h4 class="text-blue-800 font-semibold flex items-center gap-2 mb-2">
+                    <i class="fas fa-lightbulb text-blue-600"></i> Accountant's Guide
+                </h4>
+                <ul class="text-sm text-blue-800/80 space-y-2 list-disc pl-5">
+                    <li><strong>Single vs Annual Limits:</strong> Some sections like 194C and 194I trigger TDS if a <em>single</em> payment crosses a limit, OR if the <em>annual aggregate</em> crosses a larger limit. The system handles this using your previous payments input.</li>
+                    <li><strong>No PAN?</strong> If the payee doesn't provide a PAN, the system automatically applies a higher TDS rate (usually 20%).</li>
+                    <li><strong>Purchase of Goods (194Q):</strong> If selected, TDS is only calculated on the amount that <em>exceeds</em> ₹50 Lakhs.</li>
+                </ul>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Logic Engine Script -->
+    <script>
+        /**
+         * TDS Logic Engine Database mapped for conversational UI
+         * Includes dynamic labels for specific form questions
+         */
+        const tdsRules = [
+            {
+                id: "194C",
+                question: "Paying a Contractor or Sub-contractor (for work/labor)",
+                sectionName: "194C",
+                threshold: 100000,          
+                singleThreshold: 30000,     
+                rateIndHuf: 1,
+                rateOther: 2,
+                noPanRate: 20,
+                calcOnExcessOnly: false,
+                labels: {
+                    current: "Current Invoice / Payment Amount",
+                    previous: "Amount Paid or Credited as Expense During the Year :- <span class='text-slate-500 font-normal'>(Optional)</span>",
+                    helper: "<i class='fas fa-info-circle mr-1'></i> Required to check annual aggregate limits (Annual ₹1 Lakh for 194C)."
+                }
+            },
+            {
+                id: "194J_b",
+                question: "Paying Fees for Professional Services (CA, Lawyer, Doctor, etc.)",
+                sectionName: "194J(b)",
+                threshold: 50000,           
+                singleThreshold: 0,
+                rateIndHuf: 10,
+                rateOther: 10,
+                noPanRate: 20,
+                calcOnExcessOnly: false,
+                labels: {
+                    current: "Current Professional Fees Amount",
+                    previous: "Amount Paid or Credited as Professional Fees During the Year :- <span class='text-slate-500 font-normal'>(Optional)</span>",
+                    helper: "<i class='fas fa-info-circle mr-1'></i> Required to check annual limit (Annual ₹50,000 for 194J)."
+                }
+            },
+            {
+                id: "194J_a",
+                question: "Paying Fees for Technical Services (FTS) or Royalty",
+                sectionName: "194J(a)",
+                threshold: 50000,           
+                singleThreshold: 0,
+                rateIndHuf: 2,
+                rateOther: 2,
+                noPanRate: 20,
+                calcOnExcessOnly: false,
+                labels: {
+                    current: "Current Technical Fees / Royalty Amount",
+                    previous: "Amount Paid or Credited as Technical Fees/Royalty During the Year :- <span class='text-slate-500 font-normal'>(Optional)</span>",
+                    helper: "<i class='fas fa-info-circle mr-1'></i> Required to check annual limit (Annual ₹50,000 for 194J)."
+                }
+            },
+            {
+                id: "194I_b",
+                question: "Paying Rent for Land, Building, or Furniture",
+                sectionName: "194I(b)",
+                threshold: 600000,          
+                singleThreshold: 50000,     
+                rateIndHuf: 10,
+                rateOther: 10,
+                noPanRate: 20,
+                calcOnExcessOnly: false,
+                labels: {
+                    current: "Current Month Rent / Payment Amount",
+                    previous: "Amount Paid or Credited as Rent During the Year :- <span class='text-slate-500 font-normal'>(Optional)</span>",
+                    helper: "<i class='fas fa-info-circle mr-1'></i> Required to check annual limit (Annual ₹6,00,000 for 194I)."
+                }
+            },
+            {
+                id: "194I_a",
+                question: "Paying Rent for Plant, Machinery, or Equipment",
+                sectionName: "194I(a)",
+                threshold: 600000,          
+                singleThreshold: 50000,     
+                rateIndHuf: 2,
+                rateOther: 2,
+                noPanRate: 20,
+                calcOnExcessOnly: false,
+                labels: {
+                    current: "Current Month Rent / Payment Amount",
+                    previous: "Amount Paid or Credited as Rent During the Year :- <span class='text-slate-500 font-normal'>(Optional)</span>",
+                    helper: "<i class='fas fa-info-circle mr-1'></i> Required to check annual limit (Annual ₹6,00,000 for 194I)."
+                }
+            },
+            {
+                id: "194H",
+                question: "Paying Commission or Brokerage",
+                sectionName: "194H",
+                threshold: 15000,
+                singleThreshold: 0,
+                rateIndHuf: 2, 
+                rateOther: 2,  
+                noPanRate: 20,
+                calcOnExcessOnly: false,
+                labels: {
+                    current: "Current Commission Amount",
+                    previous: "Amount Paid or Credited as Commission During the Year :- <span class='text-slate-500 font-normal'>(Optional)</span>",
+                    helper: "<i class='fas fa-info-circle mr-1'></i> Required to check annual limit (Annual ₹15,000 for 194H)."
+                }
+            },
+            {
+                id: "194A",
+                question: "Paying Interest on Loans/Advances (Other than Securities)",
+                sectionName: "194A",
+                threshold: 5000,            
+                singleThreshold: 0,
+                rateIndHuf: 10,
+                rateOther: 10,
+                noPanRate: 20,
+                calcOnExcessOnly: false,
+                labels: {
+                    current: "Current Interest Amount",
+                    previous: "Amount Paid or Credited as Interest During the Year :- <span class='text-slate-500 font-normal'>(Optional)</span>",
+                    helper: "<i class='fas fa-info-circle mr-1'></i> Required to check annual limit (Annual ₹5,000 for 194A)."
+                }
+            },
+            {
+                id: "194Q",
+                question: "Purchasing Goods (and our turnover is > ₹10 Crores)",
+                sectionName: "194Q",
+                threshold: 5000000,
+                singleThreshold: 0,
+                rateIndHuf: 0.1,
+                rateOther: 0.1,
+                noPanRate: 5,
+                calcOnExcessOnly: true,
+                labels: {
+                    current: "Current Purchase Invoice Amount",
+                    previous: "Amount Paid or Credited for Purchases During the Year :- <span class='text-slate-500 font-normal'>(Optional)</span>",
+                    helper: "<i class='fas fa-info-circle mr-1'></i> Required to check the ₹50 Lakhs limit. TDS applies only on the excess."
+                }
+            }
+        ];
+
+        // Format Currency
+        const formatInr = (num) => {
+            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(num).replace('₹', '').trim();
+        };
+
+        // DOM Elements
+        const elPaymentType = document.getElementById('paymentType');
+        const elRadios = document.querySelectorAll('input[name="payeeType"]');
+        const elAmount = document.getElementById('amount');
+        const elPrevAmount = document.getElementById('prevAmount');
+        const elHasPan = document.getElementById('hasPan');
+
+        // Dynamic Label DOM Elements
+        const lblCurrentAmount = document.getElementById('lblCurrentAmount');
+        const lblPrevAmount = document.getElementById('lblPrevAmount');
+        const helperPrevAmount = document.getElementById('helperPrevAmount');
+
+        // Output DOM Elements
+        const outSection = document.getElementById('outSection');
+        const outSectionDesc = document.getElementById('outSectionDesc');
+        const outThreshold = document.getElementById('outThreshold');
+        const outBaseRate = document.getElementById('outBaseRate');
+        const outEffectiveRate = document.getElementById('outEffectiveRate');
+        
+        const outCurrent = document.getElementById('outCurrent');
+        const outTaxable = document.getElementById('outTaxable');
+        const outTDS = document.getElementById('outTDS');
+        const outNet = document.getElementById('outNet');
+        const panWarning = document.getElementById('panWarning');
+
+        const statusBanner = document.getElementById('statusBanner');
+        const statusIcon = document.getElementById('statusIcon');
+        const statusTitle = document.getElementById('statusTitle');
+        const statusDesc = document.getElementById('statusDesc');
+        const resultCard = document.getElementById('resultCard');
+
+        // Initialize Dropdown
+        function init() {
+            tdsRules.forEach(rule => {
+                const option = document.createElement('option');
+                option.value = rule.id;
+                option.textContent = rule.question;
+                elPaymentType.appendChild(option);
+            });
+
+            // Set first item as selected automatically to avoid blank state
+            elPaymentType.selectedIndex = 1;
+
+            // Event Listeners
+            elPaymentType.addEventListener('change', calculateTDS);
+            elRadios.forEach(r => r.addEventListener('change', calculateTDS));
+            elAmount.addEventListener('input', calculateTDS);
+            elPrevAmount.addEventListener('input', calculateTDS);
+            elHasPan.addEventListener('change', calculateTDS);
+
+            calculateTDS(); // Initial run
+        }
+
+        // Core Calculation Logic
+        function calculateTDS() {
+            const currentAmt = parseFloat(elAmount.value) || 0;
+            const prevAmt = parseFloat(elPrevAmount.value) || 0;
+            const totalAmt = currentAmt + prevAmt;
+            
+            const sectionId = elPaymentType.value;
+            const payeeType = document.querySelector('input[name="payeeType"]:checked').value;
+            const hasPan = elHasPan.checked;
+
+            if (!sectionId) return;
+
+            // Find Rule
+            const rule = tdsRules.find(r => r.id === sectionId);
+            if (!rule) return;
+
+            // Update Dynamic Labels
+            if (rule.labels) {
+                lblCurrentAmount.innerHTML = rule.labels.current;
+                lblPrevAmount.innerHTML = rule.labels.previous;
+                helperPrevAmount.innerHTML = rule.labels.helper;
+            }
+
+            // 1. Determine Base Rate based on Payee Type
+            const baseRate = payeeType === 'ind_huf' ? rule.rateIndHuf : rule.rateOther;
+
+            // 2. Determine Effective Rate based on PAN Availability
+            let effectiveRate = baseRate;
+            let appliedNoPanPenalty = false;
+            
+            if (!hasPan) {
+                effectiveRate = Math.max(baseRate, rule.noPanRate);
+                appliedNoPanPenalty = true;
+            }
+
+            // 3. Check Applicability & Determine Taxable Amount
+            let isTdsApplicable = false;
+            let taxableAmount = 0;
+            let triggerType = 'none';
+
+            // Check Single Invoice Limit (e.g., > 30000 for 194C, > 50000 for 194I)
+            if (rule.singleThreshold > 0 && currentAmt > rule.singleThreshold) {
+                isTdsApplicable = true;
+                taxableAmount = currentAmt;
+                triggerType = 'single';
+            }
+            
+            // Check Annual Aggregate Limit
+            if (totalAmt > rule.threshold) {
+                isTdsApplicable = true;
+                triggerType = 'annual';
+                
+                // If the threshold crosses on this transaction, tax applies to the WHOLE total amount paid during the year
+                // (except for 194Q where it's only on excess)
+                if (rule.calcOnExcessOnly) {
+                    taxableAmount = totalAmt - rule.threshold;
+                } else {
+                    taxableAmount = totalAmt;
+                }
+            }
+
+            // 4. Calculate Final TDS Amount
+            const tdsAmount = Math.round((taxableAmount * effectiveRate) / 100);
+            
+            // Net Payable prevents negative payouts if TDS covers past transactions too
+            let netPayable = currentAmt - tdsAmount;
+            if (netPayable < 0) netPayable = 0;
+
+            // Update UI - Logic Output
+            outSection.textContent = "Sec " + rule.sectionName;
+            outSectionDesc.textContent = "(" + rule.question.split('(')[0].trim() + ")";
+            outSectionDesc.title = rule.question;
+            
+            // Threshold Display Text
+            let thresholdText = `₹ ${formatInr(rule.threshold)} (Annual)`;
+            if (rule.singleThreshold > 0) {
+                thresholdText = `₹ ${formatInr(rule.singleThreshold)} (Single) or ` + thresholdText;
+            }
+            outThreshold.textContent = thresholdText;
+            
+            outBaseRate.textContent = `${baseRate}%`;
+            
+            if (appliedNoPanPenalty) {
+                outEffectiveRate.textContent = `${effectiveRate}%`;
+                panWarning.classList.remove('hidden');
+            } else {
+                outEffectiveRate.textContent = `${effectiveRate}%`;
+                panWarning.classList.add('hidden');
+            }
+
+            // Final Calculation Outputs
+            outCurrent.textContent = `₹ ${formatInr(currentAmt)}`;
+            outTaxable.textContent = `₹ ${formatInr(taxableAmount)}`;
+            outTDS.textContent = `- ₹ ${formatInr(tdsAmount)}`;
+            outNet.textContent = `₹ ${formatInr(netPayable)}`;
+
+            // Update Status Banner UI
+            if (currentAmt === 0) {
+                setStatus('idle', 'Enter Amount', 'Provide the payment amount to calculate deduction.');
+            } else if (!isTdsApplicable) {
+                setStatus('success', 'No TDS Required', `The amount is within safe limits. No deduction needed.`);
+            } else {
+                let extraNote = rule.calcOnExcessOnly ? ` (Calculated only on excess amount: ₹${formatInr(taxableAmount)})` : '';
+                
+                if (triggerType === 'annual' && prevAmt > 0 && !rule.calcOnExcessOnly) {
+                    extraNote = ` (Calculated on WHOLE cumulative amount of ₹${formatInr(taxableAmount)} as the annual threshold is crossed)`;
+                } else if (triggerType === 'single' && !rule.calcOnExcessOnly) {
+                    extraNote = ` (Calculated on current invoice as it exceeds single limit)`;
+                }
+                
+                setStatus('warning', 'Deduct TDS Now', `Please deduct TDS at ${effectiveRate}%${extraNote} before making the payment.`);
+            }
+        }
+
+        function setStatus(type, title, desc) {
+            statusTitle.textContent = title;
+            statusDesc.textContent = desc;
+
+            // Reset classes
+            statusBanner.className = 'px-6 py-4 flex items-center gap-3 border-b border-slate-200 transition-colors';
+            statusIcon.className = 'w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors';
+            resultCard.className = 'bg-white rounded-2xl shadow-sm border overflow-hidden relative transition-all duration-300';
+
+            if (type === 'idle') {
+                statusBanner.classList.add('bg-slate-50');
+                statusIcon.classList.add('bg-slate-400');
+                statusIcon.innerHTML = '<i class="fas fa-keyboard text-sm"></i>';
+                resultCard.classList.add('border-slate-200');
+            } else if (type === 'success') {
+                statusBanner.classList.add('bg-emerald-50');
+                statusIcon.classList.add('bg-emerald-500');
+                statusIcon.innerHTML = '<i class="fas fa-check-circle text-sm"></i>';
+                resultCard.classList.add('border-emerald-200', 'ring-1', 'ring-emerald-500/20');
+            } else if (type === 'warning') {
+                statusBanner.classList.add('bg-amber-50');
+                statusIcon.classList.add('bg-amber-500');
+                statusIcon.innerHTML = '<i class="fas fa-scissors text-sm"></i>';
+                resultCard.classList.add('border-amber-200', 'ring-1', 'ring-amber-500/20');
+            }
+        }
+
+        // Run
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
